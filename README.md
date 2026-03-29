@@ -15,7 +15,7 @@ The final application is **publicly hosted**, uses **only free-tier/open-source 
 
 ## Project Demo
 
-Demo Video: [https://drive.google.com/link](https://drive.google.com/file/d/1GTN7fxRUhcWdA2XcJVjfrZQolcIBephC/view?usp=sharing)
+Demo Video: [Demo video (Google Drive)](https://drive.google.com/file/d/1GTN7fxRUhcWdA2XcJVjfrZQolcIBephC/view?usp=sharing)
 
 ---
 
