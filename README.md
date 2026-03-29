@@ -13,6 +13,12 @@ The final application is **publicly hosted**, uses **only free-tier/open-source 
 
 ---
 
+## Project Demo
+
+Demo Video: [Demo video (Google Drive)](https://drive.google.com/file/d/1GTN7fxRUhcWdA2XcJVjfrZQolcIBephC/view?usp=sharing)
+
+---
+
 ## Problem Statement & Use Case
 
 Solar energy generation is highly variable due to weather conditions and seasonal patterns. Grid operators require accurate forecasts and intelligent decision support to:
