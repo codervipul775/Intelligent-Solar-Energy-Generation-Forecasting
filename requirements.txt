@@ -125,3 +125,5 @@ urllib3==2.6.3
     # via requests
 watchdog==6.0.0 ; sys_platform != 'darwin'
     # via streamlit
+sentence-transformers
+    # via src/rag.py (RAG retrieval)
