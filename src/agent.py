@@ -30,58 +30,15 @@ def retrieve_node(state: AgentState) -> dict:
     return {"guidelines": guidelines}
 
 def recommend_node(state: AgentState) -> dict:
-    """Generate recommendations using Google Gemini."""
-    try:
-        import google.generativeai as genai
-    except ImportError:
-        return {"recommendation": "Error: google-generativeai not installed. Install with: pip install google-generativeai"}
-    
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        # Fallback: try using Groq if available
-        api_key = os.environ.get("GROQ_API_KEY")
-        if api_key:
-            return _recommend_with_groq(state, api_key)
-        return {"recommendation": "Error: GEMINI_API_KEY or GROQ_API_KEY environment variable not set"}
-    
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-pro')
-    
-    prompt = f"""
-    Please generate a comprehensive grid management report based on the following context.
-    
-    User Query: {state.get('user_query', 'Please provide a general solar generation report.')}
-    
-    Forecast Summary:
-    {state['forecast_summary']}
-    
-    Identified Risks:
-    {state['risks']}
-    
-    Grid Guidelines:
-    {state['guidelines']}
-    
-    Your report MUST include EXACTLY these 5 defined sections:
-    - Solar generation forecast summary
-    - Identified variability and risk periods
-    - Grid balancing and storage recommendations
-    - Energy utilization optimization strategies
-    - Supporting references
-    """
-    
-    try:
-        response = model.generate_content(prompt)
-        return {"recommendation": response.text}
-    except Exception as e:
-        return {"recommendation": f"Error generating report: {str(e)}"}
-
-
-def _recommend_with_groq(state: AgentState, api_key: str) -> dict:
-    """Fallback function to use Groq API."""
+    """Generate recommendations using Groq API."""
     try:
         from groq import Groq
     except ImportError:
-        return {"recommendation": "Error: groq not installed"}
+        return {"recommendation": "Error: groq not installed. Install with: pip install groq"}
+    
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        return {"recommendation": "Error: GROQ_API_KEY environment variable not set"}
     
     client = Groq(api_key=api_key)
     
@@ -108,7 +65,6 @@ def _recommend_with_groq(state: AgentState, api_key: str) -> dict:
     """
     
     try:
-        # Try the most likely available model
         response = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model="llama2-70b-4096"
