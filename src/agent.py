@@ -2,7 +2,6 @@ import os
 from typing import TypedDict
 import pandas as pd
 from langgraph.graph import StateGraph, END
-from groq import Groq
 
 from src.tools import analyze_forecast, identify_risks, retrieve_guidelines
 
@@ -31,8 +30,22 @@ def retrieve_node(state: AgentState) -> dict:
     return {"guidelines": guidelines}
 
 def recommend_node(state: AgentState) -> dict:
-    """Generate recommendations using Groq."""
-    client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+    """Generate recommendations using Google Gemini."""
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        return {"recommendation": "Error: google-generativeai not installed. Install with: pip install google-generativeai"}
+    
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        # Fallback: try using Groq if available
+        api_key = os.environ.get("GROQ_API_KEY")
+        if api_key:
+            return _recommend_with_groq(state, api_key)
+        return {"recommendation": "Error: GEMINI_API_KEY or GROQ_API_KEY environment variable not set"}
+    
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-pro')
     
     prompt = f"""
     Please generate a comprehensive grid management report based on the following context.
@@ -56,15 +69,57 @@ def recommend_node(state: AgentState) -> dict:
     - Supporting references
     """
     
-    response = client.chat.completions.create(
-        messages=[{"role": "user", "content": prompt}],
-        model="gpt-oss-120b"
-    )
+    try:
+        response = model.generate_content(prompt)
+        return {"recommendation": response.text}
+    except Exception as e:
+        return {"recommendation": f"Error generating report: {str(e)}"}
+
+
+def _recommend_with_groq(state: AgentState, api_key: str) -> dict:
+    """Fallback function to use Groq API."""
+    try:
+        from groq import Groq
+    except ImportError:
+        return {"recommendation": "Error: groq not installed"}
     
-    if not response.choices or not response.choices[0].message.content:
-        return {"recommendation": "Error: Please try again."}
+    client = Groq(api_key=api_key)
     
-    return {"recommendation": response.choices[0].message.content}
+    prompt = f"""
+    Please generate a comprehensive grid management report based on the following context.
+    
+    User Query: {state.get('user_query', 'Please provide a general solar generation report.')}
+    
+    Forecast Summary:
+    {state['forecast_summary']}
+    
+    Identified Risks:
+    {state['risks']}
+    
+    Grid Guidelines:
+    {state['guidelines']}
+    
+    Your report MUST include EXACTLY these 5 defined sections:
+    - Solar generation forecast summary
+    - Identified variability and risk periods
+    - Grid balancing and storage recommendations
+    - Energy utilization optimization strategies
+    - Supporting references
+    """
+    
+    try:
+        # Try the most likely available model
+        response = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="llama2-70b-4096"
+        )
+        
+        if response.choices and response.choices[0].message.content:
+            return {"recommendation": response.choices[0].message.content}
+        return {"recommendation": "Error: No response from API"}
+    except Exception as e:
+        return {"recommendation": f"Error generating report: {str(e)}"}
+
 
 graph_builder = StateGraph(AgentState)
 
