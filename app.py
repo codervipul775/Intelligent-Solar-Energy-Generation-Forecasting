@@ -87,8 +87,13 @@ if uploaded_file is not None:
     
     st.subheader("Results")
     
-    # Check if target exists 
-    has_actual = TARGET_COL in df.columns
+    # Check if target exists (case-insensitive to handle variations)
+    actual_col = None
+    for col in df.columns:
+        if col.strip().lower().replace(' ', '_') == TARGET_COL:
+            actual_col = col
+            break
+    has_actual = actual_col is not None
     
     # Use Feature Aligner to handle any CSV format (different names, missing columns)
     try:
@@ -102,8 +107,8 @@ if uploaded_file is not None:
 
 
     if has_actual:
-        mae = mean_absolute_error(df[TARGET_COL], predictions)
-        r2 = r2_score(df[TARGET_COL], predictions)
+        mae = mean_absolute_error(df[actual_col], predictions)
+        r2 = r2_score(df[actual_col], predictions)
         col1, col2 = st.columns(2)
         col1.metric("Mean Absolute Error (MAE)", f"{mae:.2f}")
         col2.metric("R² Score", f"{r2:.4f}")
@@ -120,7 +125,7 @@ if uploaded_file is not None:
     with tab1:
         if has_actual:
             fig, ax = plt.subplots(figsize=(10, 5))
-            ax.plot(df.index[:100], df[TARGET_COL].iloc[:100], label='Actual', color='blue', alpha=0.7)
+            ax.plot(df.index[:100], df[actual_col].iloc[:100], label='Actual', color='blue', alpha=0.7)
             ax.plot(df.index[:100], df['Predicted Power (kW)'].iloc[:100], label='Predicted', color='orange', linestyle='--', alpha=0.9)
             ax.set_title("Actual vs Predicted Solar Power (First 100 samples)")
             ax.set_xlabel("Time Index")

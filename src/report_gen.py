@@ -36,7 +36,9 @@ class SolarReportPDF(FPDF):
         """Render a styled section heading."""
         self.set_font("Helvetica", "B", 13)
         self.set_text_color(0, 80, 160)
-        self.cell(0, 10, title, new_x="LMARGIN", new_y="NEXT")
+        # Encode to latin-1 safe text (same as section_body)
+        safe_title = title.encode("latin-1", errors="replace").decode("latin-1")
+        self.cell(0, 10, safe_title, new_x="LMARGIN", new_y="NEXT")
         self.set_draw_color(0, 120, 200)
         self.set_line_width(0.3)
         self.line(10, self.get_y(), 200, self.get_y())
@@ -93,10 +95,18 @@ def generate_report(
     # ── Section 1: Forecast Summary (from data) ──
     if forecast_summary:
         pdf.section_title("1. Solar Generation Forecast Summary")
-        pdf.key_value_row("Mean Generation", f"{forecast_summary.get('mean', 'N/A'):.2f} kW")
-        pdf.key_value_row("Max Generation", f"{forecast_summary.get('max', 'N/A'):.2f} kW")
-        pdf.key_value_row("Min Generation", f"{forecast_summary.get('min', 'N/A'):.2f} kW")
-        pdf.key_value_row("Std Deviation", f"{forecast_summary.get('std', 'N/A'):.2f} kW")
+
+        def _fmt(val) -> str:
+            """Safely format a numeric value, returning 'N/A' for missing keys."""
+            try:
+                return f"{float(val):.2f} kW"
+            except (TypeError, ValueError):
+                return "N/A"
+
+        pdf.key_value_row("Mean Generation", _fmt(forecast_summary.get('mean')))
+        pdf.key_value_row("Max Generation", _fmt(forecast_summary.get('max')))
+        pdf.key_value_row("Min Generation", _fmt(forecast_summary.get('min')))
+        pdf.key_value_row("Std Deviation", _fmt(forecast_summary.get('std')))
 
         peak_count = len(forecast_summary.get("peak_indices", []))
         low_count = len(forecast_summary.get("low_indices", []))
@@ -166,7 +176,7 @@ def generate_report(
             pdf.section_title("3. Grid Optimization Recommendations")
             pdf.section_body(recommendation)
 
-    return pdf.output()
+    return bytes(pdf.output())
 
 
 def _split_recommendation(text: str) -> list[tuple[str, str]]:
@@ -177,8 +187,8 @@ def _split_recommendation(text: str) -> list[tuple[str, str]]:
     """
     import re
 
-    # Try markdown ## headers first
-    parts = re.split(r'\n#{1,3}\s+', text)
+    # Try markdown ## headers first (match at start of string or after newline)
+    parts = re.split(r'(?:^|\n)#{1,3}\s+', text)
     if len(parts) > 2:
         sections = []
         for part in parts[1:]:  # Skip text before first header
@@ -190,7 +200,7 @@ def _split_recommendation(text: str) -> list[tuple[str, str]]:
         return sections
 
     # Try **bold** headers
-    parts = re.split(r'\n\*\*(.+?)\*\*\s*\n', text)
+    parts = re.split(r'(?:^|\n)\*\*(.+?)\*\*\s*\n', text)
     if len(parts) > 2:
         sections = []
         for i in range(1, len(parts), 2):
@@ -201,10 +211,10 @@ def _split_recommendation(text: str) -> list[tuple[str, str]]:
         return sections
 
     # Try numbered sections like "1. Title" or "1) Title" 
-    parts = re.split(r'\n\d+[\.\)]\s+', text)
+    parts = re.split(r'(?:^|\n)\d+[\.\)]\s+', text)
     if len(parts) > 2:
         # Re-extract with titles
-        matches = list(re.finditer(r'\n(\d+[\.\)]\s+.+)', text))
+        matches = list(re.finditer(r'(?:^|\n)(\d+[\.\)]\s+.+)', text))
         if matches:
             sections = []
             for j, match in enumerate(matches):
