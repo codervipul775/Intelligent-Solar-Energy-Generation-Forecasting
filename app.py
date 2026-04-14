@@ -9,6 +9,7 @@ from src.feature_aligner import align_features
 from src.tools import analyze_forecast, identify_risks
 from src.agent import agent
 from src.report_gen import generate_report
+from src.rag import get_retriever
 
 st.set_page_config(page_title="Solar Energy Forecasting", layout="wide")
 
@@ -27,7 +28,12 @@ def load_artifacts():
         return model, scaler
     return None, None
 
+@st.cache_resource
+def load_retriever():
+    return get_retriever()
+
 model, scaler = load_artifacts()
+retriever = load_retriever()
 
 st.title("Solar Energy Generation Forecasting")
 st.write("Upload the dataset and visualize solar power generation trends.")
@@ -75,7 +81,23 @@ if predict_button:
         st.sidebar.error("An error occurred during prediction.")
         with st.sidebar.expander("Error Details"):
             st.exception(e)
-# ------------------------------
+            st.sidebar.markdown("---")
+            st.sidebar.header("🤖 Grid Assistant")
+            st.sidebar.write("Search knowledge base for battery, grid, and solar insights.")
+
+            user_query = st.sidebar.text_input("Ask a question:", placeholder="e.g., How to optimize battery storage?")
+
+            if user_query:
+                with st.sidebar:
+                    with st.spinner("Searching knowledge base..."):
+                        results = retriever.retrieve(user_query, k=3)
+                        
+                        if not results:
+                            st.warning("No relevant information found.")
+                        else:
+                            for res in results:
+                                with st.expander(f"📄 {res['source']} (Match: {res['similarity']:.2%})"):
+                                    st.markdown(res['text'])
 
 # Create main tabs
 tab_forecast, tab_assistant = st.tabs(["📈 Forecasting", "🤖 AI Assistant"])
