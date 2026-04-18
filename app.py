@@ -41,12 +41,15 @@ st.title("Solar Energy Generation Forecasting")
 st.write("Upload the dataset and visualize solar power generation trends.")
 
 # Initialize session state
+MAX_CHAT_HISTORY = 50  # Cap to prevent unbounded memory growth
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "forecast_df" not in st.session_state:
     st.session_state.forecast_df = None
 if "forecast_summary" not in st.session_state:
     st.session_state.forecast_summary = None
+if "last_report" not in st.session_state:
+    st.session_state.last_report = None
 
 if model is None:
     st.error("Model artifacts not found. Please run the training script first.")
@@ -222,7 +225,8 @@ with tab_assistant:
                         result = agent.invoke(state)
                         report_text = result.get("recommendation", "")
                         
-                        st.session_state.chat_history.append({"role": "assistant", "content": report_text})
+                        # Store report separately to avoid bloating chat_history
+                        st.session_state.last_report = report_text
                     except Exception as e:
                         st.error(f"Error generating report: {str(e)}")
             else:
@@ -280,6 +284,11 @@ with tab_assistant:
             else:
                 st.error("❌ No forecast data available.")
     
+    # --- Show last generated report in a collapsible section ---
+    if st.session_state.last_report:
+        with st.expander("📋 Last Generated Report", expanded=False):
+            st.markdown(st.session_state.last_report)
+    
     st.divider()
     
     # --- Chat area (container keeps messages in a stable block) ---
@@ -322,6 +331,10 @@ with tab_assistant:
                     st.session_state.chat_history.append({"role": "assistant", "content": error_msg})
         else:
             st.session_state.chat_history.append({"role": "assistant", "content": "⚠️ Please upload and forecast data in the Forecasting tab first."})
+        
+        # Cap chat history to prevent unbounded growth
+        if len(st.session_state.chat_history) > MAX_CHAT_HISTORY:
+            st.session_state.chat_history = st.session_state.chat_history[-MAX_CHAT_HISTORY:]
         
         st.rerun()
 
